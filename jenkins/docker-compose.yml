@@ -1,0 +1,40 @@
+# Brings up the Jenkins controller that drives the whole pipeline.
+#
+#   docker compose -f jenkins/docker-compose.yml up -d --build
+#
+# The controller reaches the host Docker daemon through the bind-mounted
+# socket, so images it builds and containers Terraform creates show up in a
+# plain `docker ps` on the host.
+services:
+  jenkins:
+    build:
+      context: .
+    image: pipeline-jenkins:local
+    container_name: jenkins
+    restart: unless-stopped
+
+    ports:
+      - "8081:8080"    # Jenkins UI  (8080 left free for other local work)
+      - "50001:50000"  # inbound agents (unused here, controller runs the jobs)
+
+    volumes:
+      # Jenkins home: job config, build history, and the Terraform state file.
+      - jenkins_home:/var/jenkins_home
+      # The host Docker daemon. This is what lets Jenkins build images and lets
+      # Terraform's kreuzwerker/docker provider create real containers.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    environment:
+      GIT_REPO_URL: "https://github.com/iihatem/local-deployment-pipeline.git"
+      JENKINS_ADMIN_ID: "admin"
+      JENKINS_ADMIN_PASSWORD: "admin123"
+      # Terraform provider cache lives on the volume, so re-inits are instant.
+      TF_PLUGIN_CACHE_DIR: "/var/jenkins_home/.terraform.d/plugin-cache"
+
+    # Docker Desktop provides host.docker.internal automatically; this keeps
+    # the smoke test working on plain Linux Docker too.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  jenkins_home:

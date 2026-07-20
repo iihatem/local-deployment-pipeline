@@ -1,0 +1,10 @@
+# The application image only needs app/. Everything else is pipeline plumbing.
+.git
+.gitignore
+jenkins/
+terraform/
+docs/
+*.md
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/

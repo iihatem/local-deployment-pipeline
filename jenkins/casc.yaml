@@ -1,0 +1,59 @@
+# Jenkins Configuration as Code.
+# Everything the controller needs -- admin account, executors, and the pipeline
+# job itself with its 2-minute SCM poll -- is declared here, so the controller
+# comes up fully configured with no clicking through the setup wizard.
+jenkins:
+  systemMessage: "Local automated deployment pipeline: Git -> Jenkins -> Docker -> Terraform"
+  numExecutors: 2
+  mode: NORMAL
+  scmCheckoutRetryCount: 2
+
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID:-admin}"
+          password: "${JENKINS_ADMIN_PASSWORD:-admin123}"
+
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+security:
+  queueItemAuthenticator:
+    authenticators:
+      - global:
+          strategy: triggeringUsersAuthorizationStrategy
+
+unclassified:
+  location:
+    url: "http://localhost:8081/"
+
+jobs:
+  - script: >
+      pipelineJob('pipeline-demo') {
+        description('Builds the demo app image and deploys it with Terraform onto the local Docker daemon. Polls SCM every 2 minutes.')
+
+        logRotator {
+          numToKeep(25)
+        }
+
+        triggers {
+          scm('H/2 * * * *')
+        }
+
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url("${GIT_REPO_URL:-https://github.com/iihatem/local-deployment-pipeline.git}")
+                }
+                branch('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(false)
+          }
+        }
+      }
