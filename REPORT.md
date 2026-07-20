@@ -131,9 +131,10 @@ and the image data lookup.
 
 ![Jenkins build history](docs/screenshots/01-jenkins-build-history.png)
 
-Both builds succeeded with every stage green. Build **#1** (`a51bf3b`) was triggered by SCM
-polling picking up the initial commit; build **#2** (`0e2078d`) was triggered by polling detecting
-the follow-up commit, shown in the sidebar as "1 commit".
+Three consecutive builds, every stage green, and **not one of them was started by hand**. Build
+**#1** (`a51bf3b`) came from polling picking up the initial commit; builds **#2** (`0e2078d`) and
+**#3** (`795f1d7`) each came from polling detecting a subsequent push — the sidebar shows "1
+commit" against each.
 
 ### 4.2 Proof the build was triggered by a commit, not manually
 
@@ -148,26 +149,29 @@ The build page states **"Started by an SCM change"** and lists the repository, t
 ![Application running](docs/screenshots/02-app-running.png)
 
 The page is served by the container Terraform deployed, and it reports the build number and commit
-it was built from — `build 2`, commit `0e2078d…` — matching the Jenkins build above. That match is
-the end-to-end proof: a commit pushed to GitHub became a running container without human
-intervention.
+it was built from — `build 3`, commit `795f1d7…` — matching the most recent Jenkins build above.
+That match is the end-to-end proof: a commit pushed to GitHub became a running container without
+human intervention.
 
 ### 4.4 Docker-side verification
 
+Captured after build #3 (raw output also committed at `docs/verification-output.txt`):
+
 ```
 $ docker ps --filter name=pipeline-demo --filter name=jenkins
-NAMES           IMAGE                    STATUS                        PORTS
-pipeline-demo   323d5a297b9b             Up About a minute (healthy)   0.0.0.0:8090->5000/tcp
-jenkins         pipeline-jenkins:local   Up 8 minutes                  0.0.0.0:8081->8080/tcp, 0.0.0.0:50001->50000/tcp
+NAMES           IMAGE                    STATUS                    PORTS
+pipeline-demo   ab02b5ee39d2             Up 29 seconds (healthy)   0.0.0.0:8090->5000/tcp
+jenkins         pipeline-jenkins:local   Up 15 minutes             0.0.0.0:8081->8080/tcp, 0.0.0.0:50001->50000/tcp
 
 $ docker images pipeline-demo
 REPOSITORY      TAG       IMAGE ID
+pipeline-demo   3         ab02b5ee39d2
+pipeline-demo   latest    ab02b5ee39d2
 pipeline-demo   2         323d5a297b9b
-pipeline-demo   latest    323d5a297b9b
 pipeline-demo   1         3f1566083204
 
 $ curl -s localhost:8090/api/info
-{"app":"pipeline-demo","build_number":"2","git_commit":"0e2078d1e1cb9a6907692bb7a8c97b5738b0e458", ...}
+{"app":"pipeline-demo","build_number":"3","git_commit":"795f1d73028de1bbe7a5fde4ac984eedb45f79cc", ...}
 
 $ docker network ls --filter name=pipeline-demo-net
 NETWORK ID     NAME                DRIVER    SCOPE
