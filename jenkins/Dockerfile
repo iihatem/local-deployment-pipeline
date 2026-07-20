@@ -35,17 +35,18 @@ RUN apt-get update \
  && rm -f /tmp/terraform.zip \
  && rm -rf /var/lib/apt/lists/*
 
-# Persistent home for Terraform state and the provider plugin cache, kept
-# outside the job workspace so a workspace wipe never orphans real containers.
-RUN mkdir -p /var/jenkins_home/terraform-state /var/jenkins_home/.terraform.d/plugin-cache
-
 # Install plugins at build time so the controller boots ready to run.
 COPY plugins.txt /usr/share/jenkins/ref/plugins.txt
 RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt --latest true
 
 # Configuration as Code: admin user, security realm, and the seed pipeline job.
-COPY casc.yaml /var/jenkins_home/casc/jenkins.yaml
-ENV CASC_JENKINS_CONFIG=/var/jenkins_home/casc/jenkins.yaml
+#
+# This deliberately lives OUTSIDE /var/jenkins_home. That path is a named
+# volume, and Docker only seeds a volume from the image when the volume is
+# empty -- so a casc.yaml stored there would be shadowed by the first run's
+# copy forever, and rebuilding the image would silently change nothing.
+COPY casc.yaml /etc/jenkins-casc/jenkins.yaml
+ENV CASC_JENKINS_CONFIG=/etc/jenkins-casc/jenkins.yaml
 
 # Skip the setup wizard -- the admin account comes from casc.yaml instead.
 ENV JAVA_OPTS="-Djenkins.install.runSetupWizard=false -Dhudson.model.DownloadService.noSignatureCheck=true"

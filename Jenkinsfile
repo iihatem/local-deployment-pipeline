@@ -98,6 +98,11 @@ pipeline {
                 dir("${TF_DIR}") {
                     sh '''
                         set -eu
+                        # These live on the jenkins_home volume, which is empty on
+                        # first boot, so create them rather than assuming the image
+                        # provided them.
+                        mkdir -p "$(dirname "${TF_STATE_PATH}")" "${TF_PLUGIN_CACHE_DIR}"
+
                         terraform init -input=false -reconfigure \
                             -backend-config="path=${TF_STATE_PATH}"
                         terraform fmt -check -recursive
